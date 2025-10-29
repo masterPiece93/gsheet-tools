@@ -28,7 +28,7 @@ check_black = "black --check src/gsheet_tools"
 ruff = "ruff check --show-files src/gsheet_tools"
 ruff_fix = "ruff check --fix src/gsheet_tools"
 lint = {composite = ["ruff", "check_isort", "check_black"]}
-pylint = "pylint -f actions src/"
+pylint = "pylint --output-format=colorized src/"
 mypy = "mypy src/"
 check_build = "check-wheel-contents dist/"
 

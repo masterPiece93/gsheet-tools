@@ -1,19 +1,41 @@
+"""
+This module provides a set of tools for interacting with Google Sheets data.
+
+It includes utilities for:
+- Validating and parsing Google Sheets URLs.
+- Fetching data from Google Sheets using the Google Sheets API.
+- Formatting sheet names into snake_case.
+- Identifying the origin and MIME type of Google Sheets files.
+- Preparing pandas DataFrames from Google Sheets data.
+
+Classes:
+- Exceptions: Custom exception classes for handling errors specific to Google Sheets processing.
+- UrlResolver: Resolves and validates Google Sheets URLs, extracting file and sheet IDs.
+- NameFormatter: Provides utilities for formatting sheet names.
+- SheetOrigins: Enum for identifying the origin of a Google Sheet.
+- SheetMimetype: Enum for identifying the MIME type of a Google Sheet.
+
+Functions:
+- get_gid_sheets_data: Fetches data for a specific sheet by its GID or the first sheet by default.
+- get_gsheet_data: Fetches data from a Google Sheet with various selection options.
+- check_sheet_origin: Determines the origin and MIME type of a Google Sheet file.
+- is_valid_google_url: Validates if a URL is a valid Google Sheets URL.
+- prepare_dataframe: Converts Google Sheets data into a pandas DataFrame.
+
+This module is designed to simplify working with Google Sheets data and provide robust error 
+handling for common issues.
+"""
+
 import dataclasses
 import re
 from collections import namedtuple
 from enum import Enum
-from typing import (
-    List,
-    Any,
-    Tuple,
-    Optional,
-    NamedTuple,
-    Dict
-)
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 from urllib.parse import urlparse
-from gsheet_tools import GsheetToolExceptionsBase
 
 import pandas as pd
+
+from gsheet_tools._exceptions import GsheetToolExceptionsBase
 
 __all__ = [
     "Exceptions",
@@ -30,49 +52,49 @@ __all__ = [
 
 class Exceptions:
     """
-    Tool Exceptions
+    Custom exception classes for handling errors specific to Google Sheets processing.
     """
 
     class GoogleSpreadsheetProcessingError(GsheetToolExceptionsBase):
         """
-        Issue in Parsing specific Google Sheets
-        [Exception]"""
+        Raised when there is an issue in parsing specific Google Sheets.
+        """
 
-        pass
+
     class GsheetToolsArgumentError(GsheetToolExceptionsBase):
+        """
+        Raised when invalid arguments are passed to GSheet tools functions.
+        """
+
         def __init__(self, message, *args):
             prefix = "ArgumentError"
-            self.message=f"{prefix}|{message}"
+            self.message = f"{prefix}|{message}"
             super().__init__(*args)
 
 
 class UrlResolver:
     """
-    Resolves the Google sheet url.
+    Resolves and validates Google Sheets URLs, extracting file and sheet IDs.
 
     Args:
-        - raw_url [str]: raw_url of file
+        raw_url (str): The raw URL of the Google Sheet.
 
-    Kwargs: None
+    Attributes:
+        raw_url (str): The raw URL of the Google Sheet.
+        is_valid (bool): Indicates whether the URL is valid.
+        url_data (Optional[UrlResolver.UrlData]): Resolved fields of the URL.
 
-    Returns:
-
-        - raw_url (str) : raw_url of file
-
-        - is_valid (bool) : if the sheet url is valid
-
-        - url_data( UrlResolver.UrlData) : resolved fields of url
-
-    There is expectation of following types of google url only :
-        - https://docs.google.com/spreadsheets/d/{GOOGLE-SHEET-RESOURCE-ID}/edit?gid={SHEET-GID}#gid=546508778
+    Notes:
+        Supported URL formats:
+        - https://docs.google.com/spreadsheets/d/{GOOGLE-SHEET-RESOURCE-ID}/edit?gid={SHEET-GID}#gid=546508778 # pylint: disable=C0301
         - https://docs.google.com/spreadsheets/d/{GOOGLE-SHEET-RESOURCE-ID}/edit?usp=sharing
-
-    GOOGLE-SHEET-RESOURCE-ID : is the id the uniquely identifies the google sheet file
-    SHEET-GID : is the id the uniquely identifies the indivisual sheets inside the google sheet file
     """
 
     @dataclasses.dataclass(frozen=True)
     class UrlData:
+        """
+        Represents Url Data retrieved
+        """
         file_id: str
         gid: str
 
@@ -84,19 +106,22 @@ class UrlResolver:
 
     @property
     def raw_url(self) -> str:
+        """ReadOnly"""
         return self._raw_url
 
     @property
     def is_valid(self) -> bool:
+        """ReadOnly"""
         return self._is_valid
 
     @property
     def url_data(self) -> Optional[UrlData]:
+        """ReadOnly"""
         return self._url_data
 
     def _process(self) -> None:
         """
-        initializes the fields appropriately
+        Initializes the fields by validating and parsing the URL.
         """
         if not is_valid_google_url(self._raw_url):
             return
@@ -114,23 +139,28 @@ class UrlResolver:
 
 class NameFormatter:
     """
-    Name related formatting
+    Provides utilities for formatting sheet names.
     """
 
     @staticmethod
     def to_snake_case(text: str) -> str:
-        """Sheet name to Snake Case"""
-        # Insert underscore before uppercase letters preceded by a lowercase letter
+        """
+        Converts a sheet name to snake_case.
+
+        Args:
+            text (str): The input text to format.
+
+        Returns:
+            str: The formatted text in snake_case.
+        """
         text = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", text)
-        # Replace spaces, hyphens, and multiple underscores with a single underscore
         text = re.sub(r"[\s-]+", "_", text)
-        # Convert to lowercase
         return text.lower()
 
 
 class SheetOrigins(str, Enum):
     """
-    Indicators for sheet origination
+    Enum for identifying the origin of a Google Sheet.
     """
 
     GOOGLE_SHEET_TOOL = "GOOGLE_SHEET_TOOL"
@@ -141,7 +171,7 @@ class SheetOrigins(str, Enum):
 
 class SheetMimetype(str, Enum):
     """
-    Official sheet mimetypes
+    Enum for identifying the MIME type of a Google Sheet.
     """
 
     ORIGINAL = "application/vnd.google-apps.spreadsheet"
@@ -152,21 +182,41 @@ class SheetMimetype(str, Enum):
     STANDARD_CSV = "text/csv"
 
 
-def _fetch_data(sheet: object, sheet_id: str, range: str) -> list:
-    """Fetch single sheet data
-    [utility]"""
-    result = sheet.values().get(spreadsheetId=sheet_id, range=range).execute()
-    values: list = result.get("values", [])
-    return values
+def _fetch_data(sheet: object, sheet_id: str, cell_range: str) -> list:
+    """
+    Fetches data from a single sheet.
+
+    Args:
+        sheet (object): The Google Sheets API service object.
+        sheet_id (str): The ID of the spreadsheet.
+        range (str): The range of cells to fetch.
+
+    Returns:
+        list: The fetched data.
+    """
+    result = sheet.values().get(spreadsheetId=sheet_id, range=cell_range).execute()
+    return result.get("values", [])
 
 
 def get_gid_sheets_data(
     sheet: object, sheet_id: str, gid: Optional[str], without_headers: bool = False
 ) -> Tuple[str, list]:
-    """Fetch sheet data for a particulat sheet corresponding to a `gid` or First Sheet
-        - If `gid` is not specified or procured from url , First Sheet by index
-            is considered & picked for processing .
-    [utility]"""
+    """
+    Fetches data for a specific sheet by its GID or the first sheet by default.
+
+    Args:
+        sheet (object): The Google Sheets API service object.
+        sheet_id (str): The ID of the spreadsheet.
+        gid (Optional[str]): The GID of the sheet.
+        without_headers (bool): Whether to exclude headers from the data.
+
+    Returns:
+        Tuple[str, list]: The sheet title and its data.
+
+    Raises:
+        Exception: If the sheet is not found.
+    """
+
     spreadsheet_metadata = sheet.get(
         spreadsheetId=sheet_id,
         fields="sheets.properties",  # Request only the properties of each sheet
@@ -189,39 +239,55 @@ def get_gid_sheets_data(
         _range = f"{title}"
         if without_headers:
             _range = _range + "!" + "A2:z999999"
-        return title, _fetch_data(sheet, sheet_id, range=_range)
+        return title, _fetch_data(sheet, sheet_id, cell_range=_range)
     return "", []
 
-def get_gsheet_data(sheet: object, file_id: str, by: str="all", gid: Optional[str]=None, sheet_name: Optional[str]=None, sheet_position:Optional[int]=None, without_headers: bool=False, custom_tabular_range: Tuple[str, str]=('A1','z999999'), not_found_priority: Optional[List]=[]) -> List[List]:
-    """Fetches Google Sheet file data
 
-    This function fetches google sheet file's data and provided
-        options over it .
+def get_gsheet_data(
+    sheet: object,
+    file_id: str,
+    by: str = "all",
+    gid: Optional[str] = None,
+    sheet_name: Optional[str] = None,
+    sheet_position: Optional[int] = None,
+    without_headers: bool = False,
+    custom_tabular_range: Tuple[str, str] = ("A1", "z999999"),
+    not_found_priority: Optional[List] = [],
+) -> List[List]:
+    """
+    Fetches data from a Google Sheet with various selection options.
 
     Args:
-        by (str) : sheet level selection options
-            - supported values - 'all', 'gid', 'sheet_name'
-        gid (str, None) : gid of particular sheet if `:by="gid"`
-        sheet_name (str, None) : sheet_name of a particular sheet if `:by="sheet_name"`
-        sheet_position (str, None) : sheet_position of a particular sheet if `:by="sheet_position"`
+        sheet (object): The Google Sheets API service object.
+        file_id (str): The ID of the spreadsheet.
+        by (str): The selection method ('all', 'gid', 'sheet_name', etc.).
+        gid (Optional[str]): The GID of the sheet (if by='gid').
+        sheet_name (Optional[str]): The name of the sheet (if by='sheet_name').
+        sheet_position (Optional[int]): The position of the sheet (if by='sheet_position').
+        without_headers (bool): Whether to exclude headers from the data.
+        custom_tabular_range (Tuple[str, str]): The custom range of cells to fetch.
+        not_found_priority (Optional[List]): Priority list for fallback options.
 
-    Kwargs:
-        None
-    
     Returns:
-        list: list of sheet data.
-    
+        List[List]: The fetched data.
+
     Raises:
-        Exception : If sheet does not exist by specified `by` option
+        Exceptions.GsheetToolsArgumentError: If invalid arguments are passed.
     """
 
-    if by == "gid" and gid == None:
-        raise Exceptions.GsheetToolsArgumentError(f"get_gsheet_data|with `{by=}` you are cannot pass `{gid=}`.")
-    if by == "sheet_name" and sheet_name == None:
-        raise Exceptions.GsheetToolsArgumentError(f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_name=}`.")
-    if by == "sheet_position" and sheet_position == None:
-        raise Exceptions.GsheetToolsArgumentError(f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_position=}`.")
-    
+    if by == "gid" and gid is None:
+        raise Exceptions.GsheetToolsArgumentError(
+            f"get_gsheet_data|with `{by=}` you are cannot pass `{gid=}`."
+        )
+    if by == "sheet_name" and sheet_name is None:
+        raise Exceptions.GsheetToolsArgumentError(
+            f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_name=}`."
+        )
+    if by == "sheet_position" and sheet_position is None:
+        raise Exceptions.GsheetToolsArgumentError(
+            f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_position=}`."
+        )
+
     # fetch metadata on google sheet
     spreadsheet_metadata = sheet.get(
         spreadsheetId=file_id,
@@ -230,22 +296,18 @@ def get_gsheet_data(sheet: object, file_id: str, by: str="all", gid: Optional[st
     # check if any sheet exists
     if "sheets" not in spreadsheet_metadata:
         return "", []
-    
+
     translation_map: Dict[str, Tuple[str, Any]] = {
         "gid": ("sheetId", gid),
         "sheet_name": ("title", sheet_name),
-        "sheet_position": ("index", sheet_position)
+        "sheet_position": ("index", sheet_position),
     }
     try:
         search_on_key, search_for_value = translation_map[by]
     except KeyError as e:
-        raise Exception(f'value not supported yet. {e}')
-    
-    # search_on_key, search_for_value = (
-    #     ("sheetId", str(gid)) if gid is not None else ("index", str(0))
-    # )
+        raise Exception(f"value not supported yet. {e}")
 
-    sheet_title = '' 
+    sheet_title = ""
     sheet_data: list = []
 
     def _find(search_on_key, search_for_value) -> bool:
@@ -260,11 +322,11 @@ def get_gsheet_data(sheet: object, file_id: str, by: str="all", gid: Optional[st
             first_key = next(iter(not_found_priority))
             _value = not_found_priority.pop(first_key)
             if _value is not None:
-                _key,_ = translation_map[first_key]
+                _key, _ = translation_map[first_key]
                 try:
                     _find(_key, _value)
                 except KeyError as e:
-                    raise Exception(f'value not supported yet. {e}')
+                    raise Exception(f"value not supported yet. {e}")
             # # not found values also fail
             return sheet_title, sheet_data
         # properties found
@@ -272,16 +334,26 @@ def get_gsheet_data(sheet: object, file_id: str, by: str="all", gid: Optional[st
         _range = f"{sheet_title}"
         if without_headers:
             _range = _range + "!" + "A2:z999999"
-        return _fetch_data(sheet, file_id, range=_range)
-    
+        return _fetch_data(sheet, file_id, cell_range=_range)
+
     sheet_title, sheet_data = _find(search_on_key, search_for_value)
     return sheet_title, sheet_data
-    
-    
+
 
 def check_sheet_origin(
     google_drive_service: object, file_id: str
 ) -> Tuple[str, NamedTuple]:
+    """
+    Determines the origin and MIME type of a Google Sheet file.
+
+    Args:
+        google_drive_service (object): The Google Drive API service object.
+        file_id (str): The ID of the file.
+
+    Returns:
+        Tuple[str, NamedTuple]: The origin and details of the file.
+    """
+
     file_metadata = (
         google_drive_service.files()
         .get(fileId=file_id, fields="mimeType,originalFilename")
@@ -348,6 +420,15 @@ def check_sheet_origin(
 
 
 def is_valid_google_url(url: str) -> bool:
+    """
+    Validates if a URL is a valid Google Sheets URL.
+
+    Args:
+        url (str): The URL to validate.
+
+    Returns:
+        bool: True if the URL is valid, False otherwise.
+    """
     VALID_SCHEME = "https"  # pylint: disable=C0103
     VALID_DOMAIN = "docs.google.com"  # pylint: disable=C0103
     try:
@@ -362,7 +443,18 @@ def is_valid_google_url(url: str) -> bool:
 
 
 def prepare_dataframe(spreadsheet_data: List[List[Any]]) -> pd.DataFrame:
-    """Prepare dataframe from spreadsheet data"""
+    """
+    Converts Google Sheets data into a pandas DataFrame.
+
+    Args:
+        spreadsheet_data (List[List[Any]]): The data from the spreadsheet.
+
+    Returns:
+        pd.DataFrame: The resulting DataFrame.
+
+    Raises:
+        Exceptions.GoogleSpreadsheetProcessingError: If the data is invalid or empty.
+    """
 
     spreadsheet_data = list(filter(None, spreadsheet_data))  # remove empty rows .
     if not spreadsheet_data:
@@ -375,75 +467,3 @@ def prepare_dataframe(spreadsheet_data: List[List[Any]]) -> pd.DataFrame:
     ]
     spreadsheet_dataframe = pd.DataFrame(padded_spreadsheet_data, columns=column_names)
     return spreadsheet_dataframe
-
-
-def _private()-> None: ...
-
-"""
-TODO:
-
-apply multipledispatch on the following :
-
-find_by: str
-get_gsheet_data(
-    sheet, 
-    file_id, 
-    find_by="gid", 
-    gid="0",
-    without_headers: bool=False, 
-    custom_tabular_range: str=""
-    not_found_priority = {
-        "sheet_name": "ankit",
-        "sheet_position": "Last"
-    }
-)
-
-find_by: dict
-get_gsheet_data(
-    sheet, 
-    file_id, 
-    find_by={
-        "gid": 0,
-        "sheet_name": "ankit",
-        "sheet_position": "Last",
-    },
-    without_headers: bool=False, 
-    custom_tabular_range: str=""
-)
-
-find_by: expression_obj
-get_gsheet_data(
-    sheet, 
-    file_id, 
-    find_by="gid:0 & sheet_name:ankit | sheet_position:>6"
-    without_headers: bool=False, 
-    custom_tabular_range: str=""
-)
-
-find_by: tuple
-get_gsheet_data(
-    sheet, 
-    file_id, 
-    find_by=("gid",("sheet_name", "sheet_position")) 
-    gid="0",
-    sheet_name="ankit",
-    sheet_position="Last",
-    without_headers: bool=False, 
-    custom_tabular_range: str=""
-)
-
-find_by: callable
-get_gsheet_data(
-    sheet, 
-    file_id, 
-    find_by=lambda properties: properties["gid"]==0 and properties["index"] > 3
-    gid="0",
-    sheet_name="ankit",
-    sheet_position="Last",
-    without_headers: bool=False, 
-    custom_tabular_range: str=""
-)
-
-- in expression type , you'll need to be supporting for multiple sheet also.
-- give option for "allow_multiple" and "single_result_fetch_for"
-"""
