@@ -1,5 +1,18 @@
 # Developer Notes
 
+
+1. add pdm in pipx
+```sh
+pipx install --suffix "@gsheet-tools" pdm --python python3.12
+```
+
+2. prepare pdm
+- as we already have `pdm.lock` file
+```sh
+pdm@gsheet-tools sync
+```
+
+
 ## Bulding this package with pdm
 
 - [Video Tute 1](https://www.youtube.com/watch?v=qOIWNSTYfcc)

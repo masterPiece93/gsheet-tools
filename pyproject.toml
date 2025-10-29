@@ -31,6 +31,7 @@ lint = {composite = ["ruff", "check_isort", "check_black"]}
 pylint = "pylint --output-format=colorized src/"
 mypy = "mypy src/"
 check_build = "check-wheel-contents dist/"
+test = "pytest"
 
 # Linting error codes to ignore
 ignore = [
@@ -75,6 +76,9 @@ ignore_missing_imports = false
 disallow_untyped_defs = true
 check_untyped_defs = true
 
+[tool.pytest.ini_options]
+addopts = "--cov=gsheet_tools --cov-report html --cov-report term-missing"
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
@@ -87,5 +91,9 @@ format = [
     "pylint-actions>=0.6.0",
     "isort>=6.1.0",
     "ruff>=0.14.0",
+]
+test = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
 ]
 
