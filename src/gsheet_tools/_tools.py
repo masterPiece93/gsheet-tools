@@ -130,8 +130,6 @@ class UrlResolver:
         match = re.search(r"/d/([a-zA-Z0-9-_]+)(?:.*?gid=([0-9]+))?", self._raw_url)
         if match:
             _file_id = match.group(1)
-            if not _file_id:
-                return
             _gid = match.group(2)
             self._is_valid = True
             self._url_data = self.UrlData(file_id=_file_id, gid=_gid)
@@ -277,15 +275,15 @@ def get_gsheet_data(
 
     if by == "gid" and gid is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you are cannot pass `{gid=}`."
+            f"get_gsheet_data|with `{by=}` you cannot pass `{gid=}`."
         )
     if by == "sheet_name" and sheet_name is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_name=}`."
+            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_name=}`."
         )
     if by == "sheet_position" and sheet_position is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you are cannot pass `{sheet_position=}`."
+            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_position=}`."
         )
 
     # fetch metadata on google sheet
@@ -307,36 +305,42 @@ def get_gsheet_data(
     except KeyError as e:
         raise Exception(f"value not supported yet. {e}")
 
-    sheet_title = ""
-    sheet_data: list = []
 
-    def _find(search_on_key, search_for_value) -> bool:
+    def _find(indivisual_sheet_properties:list, search_on_key, search_for_value) -> Optional[list]:
+        """
+        """
         found_sheet_properties = None
-        for indivisual_sheet in spreadsheet_metadata["sheets"]:
+        for indivisual_sheet in indivisual_sheet_properties:
             if str(indivisual_sheet["properties"][search_on_key]) == search_for_value:
                 found_sheet_properties = indivisual_sheet["properties"]
                 break
-        else:
-            # properties not found
-            # # check for not found values
-            first_key = next(iter(not_found_priority))
-            _value = not_found_priority.pop(first_key)
-            if _value is not None:
-                _key, _ = translation_map[first_key]
-                try:
-                    _find(_key, _value)
-                except KeyError as e:
-                    raise Exception(f"value not supported yet. {e}")
-            # # not found values also fail
-            return sheet_title, sheet_data
+        return found_sheet_properties
+    
+    def _fallback_safe_find_proprties(spreadsheet_metadata) -> Optional[list]:
+        """
+        """
+        found_sheet_properties = _find(spreadsheet_metadata["sheets"], search_on_key, search_for_value)
+        if found_sheet_properties:
+            return found_sheet_properties
+        for first_fallback_search_key, first_fallback_search_value in not_found_priority.items():
+            if first_fallback_search_value is not None and first_fallback_search_key in translation_map:
+                first_fallback_search_key_translated, _ = translation_map[first_fallback_search_key]
+                found_sheet_properties = _find(spreadsheet_metadata["sheets"], first_fallback_search_key_translated, first_fallback_search_value)
+                if found_sheet_properties:
+                    return found_sheet_properties
+        return None
+    
+    found_sheet_properties = _fallback_safe_find_proprties(spreadsheet_metadata)
+    sheet_title: str = ""
+    sheet_data: list = []
+    if found_sheet_properties:
         # properties found
         sheet_title = found_sheet_properties.get("title")
         _range = f"{sheet_title}"
         if without_headers:
             _range = _range + "!" + "A2:z999999"
-        return _fetch_data(sheet, file_id, cell_range=_range)
-
-    sheet_title, sheet_data = _find(search_on_key, search_for_value)
+        return sheet_title, _fetch_data(sheet, file_id, cell_range=_range)
+    # default return
     return sheet_title, sheet_data
 
 
