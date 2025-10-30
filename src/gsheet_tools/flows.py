@@ -3,7 +3,7 @@
 from abc import ABC
 
 
-class Flow(ABC):
+class Flow(ABC):    # pylint: disable=R0903 # temporary
     """
     Concept Of Flow
 
@@ -15,7 +15,7 @@ class Flow(ABC):
     """
 
 
-class DataframeFrameFlow(Flow):
+class DataframeFrameFlow(Flow): # pylint: disable=R0903 # temporary
     """
     When the Ultimate goal is to only reach at a dataframe from google sheet
 
@@ -23,7 +23,7 @@ class DataframeFrameFlow(Flow):
     """
 
 
-class CsvFlow(Flow):
+class CsvFlow(Flow):    # pylint: disable=R0903 # temporary
     """
     When the Ultimate goal is to only reach at a csv from google sheet
 

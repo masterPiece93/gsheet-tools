@@ -29,7 +29,7 @@ ruff = "ruff check --show-files src/gsheet_tools"
 ruff_fix = "ruff check --fix src/gsheet_tools"
 lint = {composite = ["ruff", "check_isort", "check_black"]}
 fix_lint = {composite = ["ruff_fix", "isort", "black"]}
-pylint = "pylint --output-format=colorized src/"
+pylint = "pylint --output-format=colorized --fail-under=9.5 src/"
 mypy = "mypy src/"
 check_build = "check-wheel-contents dist/"
 test = "pytest"
@@ -52,6 +52,7 @@ ignore = [
     "PIE810",  # multiple-starts-ends-with
     "PGH003",  # Use specific rule codes when ignoring type issues
     "PLC1901", # compare-to-empty-string
+    "R0903",   # too-few-public-methods
 ]
 
 # Linting error codes to ignore on a per-file basis
@@ -80,6 +81,9 @@ check_untyped_defs = true
 # Pylint
 [tool.pylint.format]
 max-line-length = 120
+
+[tool.pylint]
+disable = "C0114, C0116, R0913, R0915, R0917"
 
 # Pytest
 [tool.pytest.ini_options]
