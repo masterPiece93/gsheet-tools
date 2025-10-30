@@ -66,7 +66,7 @@ class Exceptions:
         Raised when invalid arguments are passed to GSheet tools functions.
         """
 
-        def __init__(self, message, *args):
+        def __init__(self, message: str, *args: tuple) -> None:
             prefix = "ArgumentError"
             self.message = f"{prefix}|{message}"
             super().__init__(*args)
@@ -192,7 +192,10 @@ def _fetch_data(sheet: object, sheet_id: str, cell_range: str) -> list:
     Returns:
         list: The fetched data.
     """
-    result = sheet.values().get(spreadsheetId=sheet_id, range=cell_range).execute()
+    result = sheet.values().get(    # type: ignore[attr-defined]
+        spreadsheetId=sheet_id,
+        range=cell_range
+    ).execute()
     return result.get("values", [])
 
 
@@ -215,7 +218,7 @@ def get_gid_sheets_data(
         Exception: If the sheet is not found.
     """
 
-    spreadsheet_metadata = sheet.get(
+    spreadsheet_metadata = sheet.get(   # type: ignore[attr-defined]
         spreadsheetId=sheet_id,
         fields="sheets.properties",  # Request only the properties of each sheet
     ).execute()
@@ -250,8 +253,8 @@ def get_gsheet_data(
     sheet_position: Optional[int] = None,
     without_headers: bool = False,
     custom_tabular_range: Tuple[str, str] = ("A1", "z999999"),
-    not_found_priority: Optional[List] = [],
-) -> List[List]:
+    not_found_priority: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, List[Optional[List]]]:
     """
     Fetches data from a Google Sheet with various selection options.
 
@@ -287,7 +290,7 @@ def get_gsheet_data(
         )
 
     # fetch metadata on google sheet
-    spreadsheet_metadata = sheet.get(
+    spreadsheet_metadata = sheet.get(   # type: ignore[attr-defined]
         spreadsheetId=file_id,
         fields="sheets.properties",  # Request only the properties of each sheet
     ).execute()
@@ -306,7 +309,11 @@ def get_gsheet_data(
         raise Exception(f"value not supported yet. {e}")
 
 
-    def _find(indivisual_sheet_properties:list, search_on_key, search_for_value) -> Optional[list]:
+    def _find(
+            indivisual_sheet_properties:list,
+            search_on_key: str,
+            search_for_value: str
+        ) -> Optional[dict]:
         """
         """
         found_sheet_properties = None
@@ -315,27 +322,31 @@ def get_gsheet_data(
                 found_sheet_properties = indivisual_sheet["properties"]
                 break
         return found_sheet_properties
-    
-    def _fallback_safe_find_proprties(spreadsheet_metadata) -> Optional[list]:
+
+    def _fallback_safe_find_proprties(spreadsheet_metadata: dict) -> Optional[dict]:
         """
         """
         found_sheet_properties = _find(spreadsheet_metadata["sheets"], search_on_key, search_for_value)
-        if found_sheet_properties:
+        if found_sheet_properties or not not_found_priority:
             return found_sheet_properties
         for first_fallback_search_key, first_fallback_search_value in not_found_priority.items():
             if first_fallback_search_value is not None and first_fallback_search_key in translation_map:
                 first_fallback_search_key_translated, _ = translation_map[first_fallback_search_key]
-                found_sheet_properties = _find(spreadsheet_metadata["sheets"], first_fallback_search_key_translated, first_fallback_search_value)
+                found_sheet_properties = _find(
+                    spreadsheet_metadata["sheets"],
+                    first_fallback_search_key_translated,
+                    first_fallback_search_value
+                )
                 if found_sheet_properties:
                     return found_sheet_properties
         return None
-    
+
     found_sheet_properties = _fallback_safe_find_proprties(spreadsheet_metadata)
     sheet_title: str = ""
     sheet_data: list = []
     if found_sheet_properties:
         # properties found
-        sheet_title = found_sheet_properties.get("title")
+        sheet_title = found_sheet_properties.get("title")   # type: ignore[assignment]
         _range = f"{sheet_title}"
         if without_headers:
             _range = _range + "!" + "A2:z999999"
@@ -359,7 +370,7 @@ def check_sheet_origin(
     """
 
     file_metadata = (
-        google_drive_service.files()
+        google_drive_service.files()    # type: ignore[attr-defined]
         .get(fileId=file_id, fields="mimeType,originalFilename")
         .execute()
     )
@@ -368,8 +379,8 @@ def check_sheet_origin(
     original_filename = file_metadata.get(
         "originalFilename"
     )  # May not always be present or reliable for conversion history
-    origin_details: NamedTuple = namedtuple(
-        "origin_details",
+    OriginDetails: namedtuple = namedtuple( # type: ignore[misc]
+        "OriginDetails",
         field_names=(
             "is_parsable",
             "mimetype",
@@ -378,6 +389,12 @@ def check_sheet_origin(
         ),
         defaults=[None],
     )
+    OriginDetails.__annotations__ = {
+        "is_parsable": bool,
+        "mimetype": str,
+        "original_extension": str,
+        "original_filename": str
+    }
 
     origin: str = SheetOrigins.UNDEFINED.value
     is_parsable = True
@@ -415,7 +432,7 @@ def check_sheet_origin(
         else:
             # un-identified format & unsupported
             original_extension = "unidentified"
-    return origin, origin_details(
+    return origin, OriginDetails(   # type: ignore[call-arg]
         is_parsable=is_parsable,
         mimetype=mime_type,
         original_extension=original_extension,

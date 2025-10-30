@@ -28,6 +28,7 @@ check_black = "black --check src/gsheet_tools"
 ruff = "ruff check --show-files src/gsheet_tools"
 ruff_fix = "ruff check --fix src/gsheet_tools"
 lint = {composite = ["ruff", "check_isort", "check_black"]}
+fix_lint = {composite = ["ruff_fix", "isort", "black"]}
 pylint = "pylint --output-format=colorized src/"
 mypy = "mypy src/"
 check_build = "check-wheel-contents dist/"
@@ -76,8 +77,13 @@ ignore_missing_imports = false
 disallow_untyped_defs = true
 check_untyped_defs = true
 
+# Pylint
+[tool.pylint.format]
+max-line-length = 120
+
+# Pytest
 [tool.pytest.ini_options]
-addopts = "--cov=gsheet_tools --cov-report html --cov-report term-missing"
+addopts = "--cov=gsheet_tools --cov-report html --cov-report xml"
 
 [dependency-groups]
 dev = [
