@@ -23,5 +23,9 @@ jobs:
           python-version-file: pyproject.toml
           cache: true
 
+      - name: Install dependencies
+        run: |
+          pdm install -G test
+          
       - name: Lint with pylint
         run: pdm run pylint
