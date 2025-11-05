@@ -1,6 +1,6 @@
 [project]
 name = "gsheet_tools"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Assistive development tool for implementing google sheet related operations and scenarios in python projects"
 authors = [
     {name = "Ankit Yadav", email = "ankit8290@gmail.com"},
@@ -18,6 +18,10 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[tool.pdm.version]
+source = "file" # or "scm" for setuptools_scm
+path = "src/gsheet_tools/__init__.py" # if source is "file"
 
 [tool.pdm.scripts]
 isort = "isort src/gsheet_tools"

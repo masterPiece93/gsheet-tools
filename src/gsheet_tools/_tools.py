@@ -66,11 +66,12 @@ class Exceptions:
         Raised when invalid arguments are passed to GSheet tools functions.
         """
 
-        def __init__(self, message: str, *args: tuple) -> None:
-            prefix = "ArgumentError"
+        def __init__(self, arg_name: str, message: str, *args: tuple) -> None:
+            prefix = f"Argument::{arg_name}"
             self.message = f"{prefix}|{message}"
             super().__init__(*args)
 
+        __str__ = lambda self: self.message
 
 class UrlResolver:
     """
@@ -278,15 +279,18 @@ def get_gsheet_data(
 
     if by == "gid" and gid is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{gid=}`."
+            '[by,gid]',
+            f"with `{by=}` you cannot pass `{gid=}`."
         )
     if by == "sheet_name" and sheet_name is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_name=}`."
+            '[by,sheet_name]',
+            f"with `{by=}` you cannot pass `{sheet_name=}`."
         )
     if by == "sheet_position" and sheet_position is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_position=}`."
+            '[by,sheet_position]',
+            f"with `{by=}` you cannot pass `{sheet_position=}`."
         )
 
     # fetch metadata on google sheet

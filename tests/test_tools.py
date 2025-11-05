@@ -284,15 +284,15 @@ def test_get_gsheet_data__fallback_404():
 
 def test_get_gsheet_data_invalid_arguments():
     mock_service = MagicMock()
-    with pytest.raises(Exceptions.GsheetToolsArgumentError):
+    with pytest.raises(Exceptions.GsheetToolsArgumentError, match=r"Argument::[by,gid]|with `by='gid'` you cannot pass `gid=None`"):
         get_gsheet_data(mock_service, "file_id", by="gid", gid=None)
-
+    
 def test_get_gsheet_data_invalid_arguments_t2():
     mock_service = MagicMock()
-    with pytest.raises(Exceptions.GsheetToolsArgumentError):
+    with pytest.raises(Exceptions.GsheetToolsArgumentError, match=r"Argument::[by,sheet_name]|with `by='sheet_name'` you cannot pass `sheet_name=None`"):
         get_gsheet_data(mock_service, "file_id", by="sheet_name", sheet_name=None)
 
 def test_get_gsheet_data_invalid_arguments_t3():
     mock_service = MagicMock()
-    with pytest.raises(Exceptions.GsheetToolsArgumentError):
+    with pytest.raises(Exceptions.GsheetToolsArgumentError, match=r"Argument::[by,sheet_position]|with `by='sheet_position'` you cannot pass `sheet_position=None`"):
         get_gsheet_data(mock_service, "file_id", by="sheet_position", sheet_position=None)
