@@ -22,7 +22,7 @@ Functions:
 - is_valid_google_url: Validates if a URL is a valid Google Sheets URL.
 - prepare_dataframe: Converts Google Sheets data into a pandas DataFrame.
 
-This module is designed to simplify working with Google Sheets data and provide robust error 
+This module is designed to simplify working with Google Sheets data and provide robust error
 handling for common issues.
 """
 
@@ -60,16 +60,15 @@ class Exceptions:
         Raised when there is an issue in parsing specific Google Sheets.
         """
 
-
     class GsheetToolsArgumentError(GsheetToolExceptionsBase):
         """
         Raised when invalid arguments are passed to GSheet tools functions.
         """
 
-        def __init__(self, message: str, *args: tuple) -> None:
-            prefix = "ArgumentError"
+        def __init__(self, arg_name: str, message: str, *args: tuple) -> None:
+            prefix = f"Argument::{arg_name}"
             self.message = f"{prefix}|{message}"
-            super().__init__(*args)
+            super().__init__(self.message, *args)
 
 
 class UrlResolver:
@@ -95,6 +94,7 @@ class UrlResolver:
         """
         Represents Url Data retrieved
         """
+
         file_id: str
         gid: str
 
@@ -192,10 +192,11 @@ def _fetch_data(sheet: object, sheet_id: str, cell_range: str) -> list:
     Returns:
         list: The fetched data.
     """
-    result = sheet.values().get(    # type: ignore[attr-defined]
-        spreadsheetId=sheet_id,
-        range=cell_range
-    ).execute()
+    result = (
+        sheet.values()  # type: ignore[attr-defined]
+        .get(spreadsheetId=sheet_id, range=cell_range)  # type: ignore[attr-defined]
+        .execute()
+    )
     return result.get("values", [])
 
 
@@ -218,7 +219,7 @@ def get_gid_sheets_data(
         Exception: If the sheet is not found.
     """
 
-    spreadsheet_metadata = sheet.get(   # type: ignore[attr-defined]
+    spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
         spreadsheetId=sheet_id,
         fields="sheets.properties",  # Request only the properties of each sheet
     ).execute()
@@ -278,19 +279,19 @@ def get_gsheet_data(
 
     if by == "gid" and gid is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{gid=}`."
+            "[by,gid]", f"with `{by=}` you cannot pass `{gid=}`."
         )
     if by == "sheet_name" and sheet_name is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_name=}`."
+            "[by,sheet_name]", f"with `{by=}` you cannot pass `{sheet_name=}`."
         )
     if by == "sheet_position" and sheet_position is None:
         raise Exceptions.GsheetToolsArgumentError(
-            f"get_gsheet_data|with `{by=}` you cannot pass `{sheet_position=}`."
+            "[by,sheet_position]", f"with `{by=}` you cannot pass `{sheet_position=}`."
         )
 
     # fetch metadata on google sheet
-    spreadsheet_metadata = sheet.get(   # type: ignore[attr-defined]
+    spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
         spreadsheetId=file_id,
         fields="sheets.properties",  # Request only the properties of each sheet
     ).execute()
@@ -308,14 +309,10 @@ def get_gsheet_data(
     except KeyError as e:
         raise Exception(f"value not supported yet. {e}")
 
-
     def _find(
-            indivisual_sheet_properties:list,
-            search_on_key: str,
-            search_for_value: str
-        ) -> Optional[dict]:
-        """
-        """
+        indivisual_sheet_properties: list, search_on_key: str, search_for_value: str
+    ) -> Optional[dict]:
+        """ """
         found_sheet_properties = None
         for indivisual_sheet in indivisual_sheet_properties:
             if str(indivisual_sheet["properties"][search_on_key]) == search_for_value:
@@ -324,18 +321,27 @@ def get_gsheet_data(
         return found_sheet_properties
 
     def _fallback_safe_find_proprties(spreadsheet_metadata: dict) -> Optional[dict]:
-        """
-        """
-        found_sheet_properties = _find(spreadsheet_metadata["sheets"], search_on_key, search_for_value)
+        """ """
+        found_sheet_properties = _find(
+            spreadsheet_metadata["sheets"], search_on_key, search_for_value
+        )
         if found_sheet_properties or not not_found_priority:
             return found_sheet_properties
-        for first_fallback_search_key, first_fallback_search_value in not_found_priority.items():
-            if first_fallback_search_value is not None and first_fallback_search_key in translation_map:
-                first_fallback_search_key_translated, _ = translation_map[first_fallback_search_key]
+        for (
+            first_fallback_search_key,
+            first_fallback_search_value,
+        ) in not_found_priority.items():
+            if (
+                first_fallback_search_value is not None
+                and first_fallback_search_key in translation_map
+            ):
+                first_fallback_search_key_translated, _ = translation_map[
+                    first_fallback_search_key
+                ]
                 found_sheet_properties = _find(
                     spreadsheet_metadata["sheets"],
                     first_fallback_search_key_translated,
-                    first_fallback_search_value
+                    first_fallback_search_value,
                 )
                 if found_sheet_properties:
                     return found_sheet_properties
@@ -346,7 +352,7 @@ def get_gsheet_data(
     sheet_data: list = []
     if found_sheet_properties:
         # properties found
-        sheet_title = found_sheet_properties.get("title")   # type: ignore[assignment]
+        sheet_title = found_sheet_properties.get("title")  # type: ignore[assignment]
         _range = f"{sheet_title}"
         if without_headers:
             _range = _range + "!" + "A2:z999999"
@@ -370,7 +376,7 @@ def check_sheet_origin(
     """
 
     file_metadata = (
-        google_drive_service.files()    # type: ignore[attr-defined]
+        google_drive_service.files()  # type: ignore[attr-defined]
         .get(fileId=file_id, fields="mimeType,originalFilename")
         .execute()
     )
@@ -379,7 +385,7 @@ def check_sheet_origin(
     original_filename = file_metadata.get(
         "originalFilename"
     )  # May not always be present or reliable for conversion history
-    OriginDetails: namedtuple = namedtuple( # type: ignore[misc]
+    OriginDetails: namedtuple = namedtuple(  # type: ignore[misc]
         "OriginDetails",
         field_names=(
             "is_parsable",
@@ -393,7 +399,7 @@ def check_sheet_origin(
         "is_parsable": bool,
         "mimetype": str,
         "original_extension": str,
-        "original_filename": str
+        "original_filename": str,
     }
 
     origin: str = SheetOrigins.UNDEFINED.value
@@ -432,7 +438,7 @@ def check_sheet_origin(
         else:
             # un-identified format & unsupported
             original_extension = "unidentified"
-    return origin, OriginDetails(   # type: ignore[call-arg]
+    return origin, OriginDetails(  # type: ignore[call-arg]
         is_parsable=is_parsable,
         mimetype=mime_type,
         original_extension=original_extension,
