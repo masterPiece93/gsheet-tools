@@ -22,7 +22,7 @@ Exports:
 - prepare_dataframe: Converts Google Sheets data into a pandas DataFrame.
 
 Metadata:
-- Version: 0.1.0
+- Version: 0.1.1
 - Author: Ankit Yadav
 - Email: ankit8290@gmail.com
 """
