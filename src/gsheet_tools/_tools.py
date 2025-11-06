@@ -28,6 +28,7 @@ handling for common issues.
 
 import dataclasses
 import re
+import warnings
 from collections import namedtuple
 from enum import Enum
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
@@ -218,7 +219,12 @@ def get_gid_sheets_data(
     Raises:
         Exception: If the sheet is not found.
     """
-
+    warnings.warn(
+        "get_gid_sheets_data will be deprecated soon"
+        "Please use get_gsheet_data instead",
+        PendingDeprecationWarning,
+        stacklevel=2,
+    )
     spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
         spreadsheetId=sheet_id,
         fields="sheets.properties",  # Request only the properties of each sheet
@@ -275,8 +281,18 @@ def get_gsheet_data(
 
     Raises:
         Exceptions.GsheetToolsArgumentError: If invalid arguments are passed.
+
+    Warning:
+        * without_headers parameter won't take effect when custom_tabular_range is set .
+        * within not_found_priority values , every value is coerced to string .
     """
 
+    __by__ = {"gid", "sheet_name", "sheet_position"}
+    if by not in __by__:
+        raise Exceptions.GsheetToolsArgumentError(
+            "[by]",
+            f"value `{by=}` is invalid, should be any one of `{','.join(__by__)}`.",
+        )
     if by == "gid" and gid is None:
         raise Exceptions.GsheetToolsArgumentError(
             "[by,gid]", f"with `{by=}` you cannot pass `{gid=}`."
@@ -289,7 +305,11 @@ def get_gsheet_data(
         raise Exceptions.GsheetToolsArgumentError(
             "[by,sheet_position]", f"with `{by=}` you cannot pass `{sheet_position=}`."
         )
-
+    if not_found_priority and not all([v in __by__ for v in not_found_priority]):
+        raise Exceptions.GsheetToolsArgumentError(
+            "[not_found_priority]",
+            f"not_found_priority should be any of `{','.join(__by__)}`.",
+        )
     # fetch metadata on google sheet
     spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
         spreadsheetId=file_id,
@@ -312,7 +332,7 @@ def get_gsheet_data(
     def _find(
         indivisual_sheet_properties: list, search_on_key: str, search_for_value: str
     ) -> Optional[dict]:
-        """ """
+        """[Nested]"""
         found_sheet_properties = None
         for indivisual_sheet in indivisual_sheet_properties:
             if str(indivisual_sheet["properties"][search_on_key]) == search_for_value:
@@ -321,7 +341,7 @@ def get_gsheet_data(
         return found_sheet_properties
 
     def _fallback_safe_find_proprties(spreadsheet_metadata: dict) -> Optional[dict]:
-        """ """
+        """[Nested]"""
         found_sheet_properties = _find(
             spreadsheet_metadata["sheets"], search_on_key, search_for_value
         )
@@ -354,8 +374,11 @@ def get_gsheet_data(
         # properties found
         sheet_title = found_sheet_properties.get("title")  # type: ignore[assignment]
         _range = f"{sheet_title}"
-        if without_headers:
-            _range = _range + "!" + "A2:z999999"
+        if custom_tabular_range:
+            _range = _range + "!" + ":".join(custom_tabular_range)
+        else:
+            if without_headers:
+                _range = _range + "!" + "A2:z999999"
         return sheet_title, _fetch_data(sheet, file_id, cell_range=_range)
     # default return
     return sheet_title, sheet_data

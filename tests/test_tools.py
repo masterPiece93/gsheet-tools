@@ -296,3 +296,87 @@ def test_get_gsheet_data_invalid_arguments_t3():
     mock_service = MagicMock()
     with pytest.raises(Exceptions.GsheetToolsArgumentError, match=r"Argument::[by,sheet_position]|with `by='sheet_position'` you cannot pass `sheet_position=None`"):
         get_gsheet_data(mock_service, "file_id", by="sheet_position", sheet_position=None)
+
+
+def test_get_gsheet_data_invalid_by_argument():
+    """
+    Test invalid 'by' argument in get_gsheet_data.
+    """
+    mock_service = MagicMock()
+    with pytest.raises(Exceptions.GsheetToolsArgumentError):
+        get_gsheet_data(mock_service, "file_id", by="invalid_by")
+
+
+def test_get_gsheet_data_empty_sheets_metadata():
+    """
+    Test get_gsheet_data when the sheets metadata is empty.
+    """
+    mock_service = MagicMock()
+    mock_service.get().execute.return_value = {"sheets": []}
+    title, data = get_gsheet_data(mock_service, "file_id", by="gid", gid="67890")
+    assert title == ""
+    assert data == []
+
+
+def test_get_gsheet_data_empty_values():
+    """
+    Test get_gsheet_data when the sheet values are empty.
+    """
+    mock_service = MagicMock()
+    mock_service.get().execute.return_value = {
+        "sheets": [{"properties": {"sheetId": "67890", "title": "Sheet1"}}]
+    }
+    mock_service.values().get().execute.return_value = {}
+    title, data = get_gsheet_data(mock_service, "file_id", by="gid", gid="67890")
+    assert title == "Sheet1"
+    assert data == []
+
+
+def test_get_gsheet_data_not_found_priority_invalid_key():
+    """
+    Test get_gsheet_data with an invalid key in not_found_priority.
+    """
+    mock_service = MagicMock()
+    mock_service.get().execute.return_value = {
+        "sheets": [{"properties": {"sheetId": "67890", "title": "Sheet1"}}]
+    }
+    with pytest.raises(Exceptions.GsheetToolsArgumentError):
+        title, data = get_gsheet_data(
+            mock_service,
+            "file_id",
+            by="gid",
+            gid="99999",
+            not_found_priority={"invalid_key": "value"},
+        )
+
+def test_prepare_dataframe_with_non_tabular_data():
+    """
+    Test prepare_dataframe with non-tabular data.
+    """
+    data = [["Name", "Age"], ["Alice", 30], ["Bob"]]
+    # with pytest.raises(Exceptions.GoogleSpreadsheetProcessingError):
+    prepare_dataframe(data)
+
+
+def test_prepare_dataframe_with_invalid_data_type():
+    """
+    Test prepare_dataframe with invalid data type.
+    """
+    data = "invalid_data"
+    with pytest.raises(Exceptions.GoogleSpreadsheetProcessingError):
+        prepare_dataframe(data)
+
+
+def test_check_sheet_origin_invalid_mimetype():
+    """
+    Test check_sheet_origin with an invalid mimetype.
+    """
+    mock_service = MagicMock()
+    mock_service.files().get().execute.return_value = {
+        "mimeType": "application/unknown",
+        "originalFilename": None,
+    }
+    origin, details = check_sheet_origin(mock_service, "file_id")
+    assert origin == SheetOrigins.UPLOADED_NON_CONVERTED
+    assert details.is_parsable is False
+    assert details.original_extension == "unidentified"
