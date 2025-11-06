@@ -28,6 +28,7 @@ handling for common issues.
 
 import dataclasses
 import re
+import warnings
 from collections import namedtuple
 from enum import Enum
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
@@ -218,7 +219,12 @@ def get_gid_sheets_data(
     Raises:
         Exception: If the sheet is not found.
     """
-
+    warnings.warn(
+        "get_gid_sheets_data will be deprecated soon"
+        "Please use get_gsheet_data instead",
+        PendingDeprecationWarning,
+        stacklevel=2,
+    )
     spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
         spreadsheetId=sheet_id,
         fields="sheets.properties",  # Request only the properties of each sheet

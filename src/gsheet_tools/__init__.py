@@ -28,8 +28,8 @@ Metadata:
 """
 
 from gsheet_tools._exceptions import GsheetToolExceptionsBase
+from gsheet_tools._tools import Exceptions  # all public assistive tools
 from gsheet_tools._tools import (
-    Exceptions,  # all public assistive tools
     NameFormatter,
     SheetMimetype,
     SheetOrigins,
