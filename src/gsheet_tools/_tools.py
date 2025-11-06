@@ -281,10 +281,11 @@ def get_gsheet_data(
         * within not_found_priority values , every value is coerced to string .
     """
 
-    __by__ = {'gid', 'sheet_name', 'sheet_position'}
+    __by__ = {"gid", "sheet_name", "sheet_position"}
     if by not in __by__:
         raise Exceptions.GsheetToolsArgumentError(
-            "[by]", f"value `{by=}` is invalid, should be any one of `{','.join(__by__)}`."
+            "[by]",
+            f"value `{by=}` is invalid, should be any one of `{','.join(__by__)}`.",
         )
     if by == "gid" and gid is None:
         raise Exceptions.GsheetToolsArgumentError(
@@ -300,7 +301,8 @@ def get_gsheet_data(
         )
     if not_found_priority and not all([v in __by__ for v in not_found_priority]):
         raise Exceptions.GsheetToolsArgumentError(
-            "[not_found_priority]", f"not_found_priority should be any of `{','.join(__by__)}`."
+            "[not_found_priority]",
+            f"not_found_priority should be any of `{','.join(__by__)}`.",
         )
     # fetch metadata on google sheet
     spreadsheet_metadata = sheet.get(  # type: ignore[attr-defined]
@@ -324,7 +326,7 @@ def get_gsheet_data(
     def _find(
         indivisual_sheet_properties: list, search_on_key: str, search_for_value: str
     ) -> Optional[dict]:
-        """ [Nested]"""
+        """[Nested]"""
         found_sheet_properties = None
         for indivisual_sheet in indivisual_sheet_properties:
             if str(indivisual_sheet["properties"][search_on_key]) == search_for_value:
@@ -333,7 +335,7 @@ def get_gsheet_data(
         return found_sheet_properties
 
     def _fallback_safe_find_proprties(spreadsheet_metadata: dict) -> Optional[dict]:
-        """ [Nested]"""
+        """[Nested]"""
         found_sheet_properties = _find(
             spreadsheet_metadata["sheets"], search_on_key, search_for_value
         )
@@ -370,7 +372,7 @@ def get_gsheet_data(
             _range = _range + "!" + ":".join(custom_tabular_range)
         else:
             if without_headers:
-                _range = _range + "!" + f"A2:z999999"
+                _range = _range + "!" + "A2:z999999"
         return sheet_title, _fetch_data(sheet, file_id, cell_range=_range)
     # default return
     return sheet_title, sheet_data
